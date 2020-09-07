@@ -115,11 +115,27 @@ PUB Hours(hr): curr_hr
             pollrtctime{}
             return bcd2int(_hours & core#HOURS_MASK)
 
-PUB IntClear(mask)
+PUB IntClear(mask) | tmp
 ' Clear interrupts, using a bitmask
+'   Valid values:
+'       Bits: 1..0
+'           1: clear alarm interrupt
+'           0: clear timer interrupt
+'           For each bit, 0 to leave as-is, 1 to clear
+'   Any other value is ignored
+    case mask
+        %01, %10, %11:
+            readreg(core#CTRLSTAT2, 1, @tmp)
+            mask := (mask ^ %11) << core#TF             ' Reg bits are inverted
+            tmp |= mask
+            writereg(core#CTRLSTAT2, 1, @tmp)
+        other:
+            return
 
-PUB Interrupt{}: mask
+PUB Interrupt{}: flags
 ' Flag indicating one or more interrupts asserted
+    readreg(core#CTRLSTAT2, 1, @flags)
+    flags := (flags >> core#TF) & core#IF_BITS
 
 PUB IntMask(mask): curr_mask
 ' Set interrupt mask
