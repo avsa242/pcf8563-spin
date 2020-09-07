@@ -12,13 +12,17 @@
 
 CON
 
-    SLAVE_WR          = core#SLAVE_ADDR
-    SLAVE_RD          = core#SLAVE_ADDR|1
+    SLAVE_WR            = core#SLAVE_ADDR
+    SLAVE_RD            = core#SLAVE_ADDR|1
 
-    DEF_SCL           = 28
-    DEF_SDA           = 29
-    DEF_HZ            = 100_000
-    I2C_MAX_FREQ      = core#I2C_MAX_FREQ
+    DEF_SCL             = 28
+    DEF_SDA             = 29
+    DEF_HZ              = 100_000
+    I2C_MAX_FREQ        = core#I2C_MAX_FREQ
+
+' /INT pin active state
+    WHEN_TF_ACTIVE      = 0
+    INT_PULSES          = 1 << core#TI_TP
 
 VAR
 
@@ -152,6 +156,20 @@ PUB IntMask(mask): curr_mask
 
     mask := (curr_mask & core#IE_MASK) | mask
     writereg(core#CTRLSTAT2, 1, @mask)
+
+PUB IntPinState(state): curr_state
+' Set interrupt pin active state
+'   WHEN_TF_ACTIVE (0): /INT is active when timer interrupt asserted
+'   INT_PULSES (1): /INT pulses at rate set by TimerClockFreq()
+    curr_state := 0
+    readreg(core#CTRLSTAT2, 1, @curr_state)
+    case state
+        WHEN_TF_ACTIVE, INT_PULSES:
+        other:
+            return (curr_state >> core#TI_TP) & %1
+
+    state := (curr_state & core#TI_TP_MASK) | state
+    writereg(core#CTRLSTAT2, 1, @state)
 
 PUB Months(month): curr_month
 ' Set month
