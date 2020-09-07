@@ -57,6 +57,10 @@ PUB Stop{}
 
     i2c.terminate
 
+PUB Defaults{}
+' Factory default settings
+    clockoutfreq(32768)
+
 PUB ClockDataOk{}: flag
 ' Flag indicating battery voltage ok/clock data integrity ok
 '   Returns:
@@ -64,6 +68,24 @@ PUB ClockDataOk{}: flag
 '       FALSE (0): Battery voltage low, clock data integrity not guaranteed
     pollrtctime{}
     return _clkdata_ok == 0
+
+PUB ClockOutFreq(freq): curr_freq
+' Set frequency of CLKOUT pin, in Hz
+'   Valid values: 0, 1, 32, 1024, 32768
+'   Any other value polls the chip and returns the current setting
+    curr_freq := 0
+    readreg(core#CTRL_CLKOUT, 1, @curr_freq)
+    case freq
+        0:
+            freq := 1 << core#FE                        ' Turn off clock output
+        1, 32, 1024, 32768:
+            freq := lookdownz(freq: 32768, 1024, 32, 1)
+        other:
+            curr_freq &= core#FD_BITS
+            return lookupz(curr_freq: 32768, 1024, 32, 1)
+
+    freq := (curr_freq & core#FD_MASK & core#FE_MASK) | freq
+    writereg(core#CTRL_CLKOUT, 1, @freq)
 
 PUB Date(ptr_date)
 
