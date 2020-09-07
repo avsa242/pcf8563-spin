@@ -25,5 +25,5 @@ P1/SPIN1:
 ## TODO
 
 - [ ] Support interrupts
-- [ ] Support CLKOUT control
+- [x] Support CLKOUT control
 - [ ] Port to P2/SPIN2
