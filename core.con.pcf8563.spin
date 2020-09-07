@@ -5,7 +5,7 @@
     Description: Low-level constants
     Copyright (c) 2020
     Started Sep 6, 2020
-    Updated Sep 6, 2020
+    Updated Sep 7, 2020
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -32,11 +32,14 @@ CON
         TF          = 2
         AIE         = 1
         TIE         = 0
+        IF_BITS     = %11
+        IE_BITS     = %11
         TI_TP_MASK  = (1 << TI_TP) ^ CTRLSTAT2_MASK
         AF_MASK     = (1 << AF) ^ CTRLSTAT2_MASK
         TF_MASK     = (1 << TF) ^ CTRLSTAT2_MASK
         AIE_MASK    = (1 << AIE) ^ CTRLSTAT2_MASK
         TIE_MASK    = 1 ^ CTRLSTAT2_MASK
+        IE_MASK     = IE_BITS ^ CTRLSTAT2_MASK
 
     VL_SECS         = $02
     VL_SECS_MASK    = $FF

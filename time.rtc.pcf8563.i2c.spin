@@ -115,6 +115,28 @@ PUB Hours(hr): curr_hr
             pollrtctime{}
             return bcd2int(_hours & core#HOURS_MASK)
 
+PUB IntClear(mask)
+' Clear interrupts, using a bitmask
+
+PUB Interrupt{}: mask
+' Flag indicating one or more interrupts asserted
+
+PUB IntMask(mask): curr_mask
+' Set interrupt mask
+'   Valid values:
+'       Bits: 1..0
+'           1: enable alarm interrupt
+'           0: enable timer interrupt
+'   Any other value polls the chip and returns the current setting
+    readreg(core#CTRLSTAT2, 1, @curr_mask)
+    case mask
+        %00..%11:
+        other:
+            return curr_mask & core#IE_BITS
+
+    mask := (curr_mask & core#IE_MASK) | mask
+    writereg(core#CTRLSTAT2, 1, @mask)
+
 PUB Months(month): curr_month
 ' Set month
 '   Valid values: 1..12
