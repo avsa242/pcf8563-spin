@@ -25,6 +25,8 @@ VAR
     byte _secs, _mins, _hours                           ' Vars to hold time
     byte _days, _wkdays, _months, _years                ' Order is important!
 
+    byte _clkdata_ok                                    ' Clock data integrity
+
 OBJ
 
     i2c : "com.i2c"                                     ' PASM I2C Driver
@@ -54,6 +56,14 @@ PUB Startx(SCL_PIN, SDA_PIN, I2C_HZ): okay
 PUB Stop{}
 
     i2c.terminate
+
+PUB ClockDataOk{}: flag
+' Flag indicating battery voltage ok/clock data integrity ok
+'   Returns:
+'       TRUE (-1): Battery voltage ok, clock data integrity guaranteed
+'       FALSE (0): Battery voltage low, clock data integrity not guaranteed
+    pollrtctime{}
+    return _clkdata_ok == 0
 
 PUB Date(ptr_date)
 
@@ -152,8 +162,10 @@ PRI int2bcd(int): bcd
     return ((int / 10) << 4) + (int // 10)
 
 PRI pollRTCTime{}
-
+' Read the time data from the RTC and store it in hub RAM
+' Update the clock integrity status bit from the RTC
     readreg(core#VL_SECS, 7, @_secs)
+    _clkdata_ok := (_secs >> core#VL) & 1               ' Clock integrity bit
 
 PRI readReg(reg, nr_bytes, ptr_buff) | cmd_pkt, tmp
 ' Read nr_bytes from device
