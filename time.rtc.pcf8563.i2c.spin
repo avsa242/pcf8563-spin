@@ -207,6 +207,23 @@ PUB Seconds(second): curr_sec
             pollrtctime{}
             return bcd2int(_secs & core#SECS_BITS)
 
+PUB TimerClockFreq(freq): curr_freq
+' Set timer source clock frequency, in Hz
+'   Valid values:
+'       1_60 (1/60Hz), 1, 64, 4096
+'   Any other value polls the chip and returns the current setting
+    curr_freq := 0
+    readreg(core#CTRL_TIMER, 1, @curr_freq)
+    case freq
+        1_60, 1, 64, 4096:
+            freq := lookdownz(freq: 4096, 64, 1, 1_60)
+        other:
+            curr_freq &= core#TD_BITS
+            return lookupz(curr_freq: 4096, 64, 1, 1_60)
+
+    freq := (curr_freq & core#TD_MASK) | freq
+    writereg(core#CTRL_TIMER, 1, @freq)
+
 PUB Weekday(wkday): curr_wkday
 ' Set day of week
 '   Valid values: 1..7
