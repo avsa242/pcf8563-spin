@@ -5,7 +5,7 @@
     Description: Driver for the PCF8563 Real Time Clock
     Copyright (c) 2020
     Started Sep 6, 2020
-    Updated Sep 6, 2020
+    Updated Sep 7, 2020
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -60,9 +60,11 @@ PUB Date(ptr_date)
 PUB DeviceID{}: id
 
 PUB Days(day): curr_day
-
+' Set day of month
+'   Valid values: 1..31
+'   Any other value polls the RTC and returns the current day
     case day
-        0..30:
+        1..31:
             day := int2bcd(day)
             writereg(core#DAYS, 1, @day)
         other:
@@ -70,7 +72,9 @@ PUB Days(day): curr_day
             return bcd2int(_days & core#DAYS_MASK)
 
 PUB Hours(hr): curr_hr
-
+' Set hours
+'   Valid values: 0..23
+'   Any other value polls the RTC and returns the current hour
     case hr
         0..23:
             hr := int2bcd(hr)
@@ -80,7 +84,9 @@ PUB Hours(hr): curr_hr
             return bcd2int(_hours & core#HOURS_MASK)
 
 PUB Months(month): curr_month
-
+' Set month
+'   Valid values: 1..12
+'   Any other value polls the RTC and returns the current month
     case month
         1..12:
             month := int2bcd(month)
@@ -90,7 +96,9 @@ PUB Months(month): curr_month
             return bcd2int(_months & core#CENTMONTHS_MASK)
 
 PUB Minutes(minute): curr_min
-
+' Set minutes
+'   Valid values: 0..59
+'   Any other value polls the RTC and returns the current minute
     case minute
         0..59:
             minute := int2bcd(minute)
@@ -100,7 +108,9 @@ PUB Minutes(minute): curr_min
             return bcd2int(_mins & core#MINUTES_MASK)
 
 PUB Seconds(second): curr_sec
-
+' Set seconds
+'   Valid values: 0..59
+'   Any other value polls the RTC and returns the current second
     case second
         0..59:
             second := int2bcd(second)
@@ -110,17 +120,21 @@ PUB Seconds(second): curr_sec
             return bcd2int(_secs & core#SECS_BITS)
 
 PUB Weekday(wkday): curr_wkday
-
+' Set day of week
+'   Valid values: 1..7
+'   Any other value polls the RTC and returns the current day of week
     case wkday
-        0..6:
-            wkday := int2bcd(wkday)
+        1..7:
+            wkday := int2bcd(wkday-1)
             writereg(core#WEEKDAYS, 1, @wkday)
         other:
             pollrtctime{}
-            return bcd2int(_wkdays & core#WEEKDAYS_MASK)
+            return bcd2int(_wkdays & core#WEEKDAYS_MASK) + 1
 
 PUB Year(yr): curr_yr
-
+' Set 2-digit year
+'   Valid values: 0..99
+'   Any other value polls the RTC and returns the current year
     case yr
         0..99:
             yr := int2bcd(yr)

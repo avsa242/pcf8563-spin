@@ -5,7 +5,7 @@
     Description: Demo of the PCF8563 driver
     Copyright (c) 2020
     Started Sep 6, 2020
-    Updated Sep 6, 2020
+    Updated Sep 7, 2020
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -23,7 +23,6 @@ CON
     I2C_SCL     = 28
     I2C_SDA     = 29
     I2C_HZ      = 400_000
-
 ' --
 
 OBJ
@@ -34,20 +33,25 @@ OBJ
     int     : "string.integer"
     rtc     : "time.rtc.pcf8563.i2c"
 
-PUB Main{} | i, h, mi, s, w, mo, d
+PUB Main{} | wkday, mon, day, yr
 
     setup{}
 
     repeat{}
-        h := rtc.hours(-2)
-        mi := rtc.minutes(-2)
-        s := int.deczeroed(rtc.seconds(-2), 2)
-        w := lookupz(rtc.weekday(-2): string("Sun"), string("Mon"), string("Tue"), string("Wed"), string("Thu"), string("Fri"), string("Sat"))
-        mo := rtc.months(-2)
-        d := rtc.days(-2)
+        wkday := @weekday[(rtc.weekday(-2) - 1) * 4]    ' Pull strings from
+        mon := @month[(rtc.months(-2) - 1) * 4]         ' DAT table below
+        day := int.deczeroed(rtc.days(-2), 2)           '
+        yr := rtc.year(-2)
 
         ser.position(0, 3)
-        ser.printf(string("%d:%d:%s %s %d/%d "), h, mi, s, w, mo, d)
+        ser.str(wkday)
+        ser.printf(string(" %s %s 20%d "), day, mon, yr, 0, 0, 0)
+
+        ser.str(int.deczeroed(rtc.hours(-2), 2))        ' Discrete statements
+        ser.char(":")                                   ' due to a bug in
+        ser.str(int.deczeroed(rtc.minutes(-2), 2))      ' string.integer
+        ser.char(":")
+        ser.str(int.deczeroed(rtc.seconds(-2), 2))
 
 PUB Setup{}
 
@@ -63,6 +67,30 @@ PUB Setup{}
         time.msleep(50)
         ser.stop{}
 
+DAT
+
+    weekday
+            byte    "Sun", 0
+            byte    "Mon", 0
+            byte    "Tue", 0
+            byte    "Wed", 0
+            byte    "Thu", 0
+            byte    "Fri", 0
+            byte    "Sat", 0
+
+    month
+            byte    "Jan", 0
+            byte    "Feb", 0
+            byte    "Mar", 0
+            byte    "Apr", 0
+            byte    "May", 0
+            byte    "Jun", 0
+            byte    "Jul", 0
+            byte    "Aug", 0
+            byte    "Sep", 0
+            byte    "Oct", 0
+            byte    "Nov", 0
+            byte    "Dec", 0
 
 DAT
 {
