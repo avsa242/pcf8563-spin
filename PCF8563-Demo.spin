@@ -36,11 +36,7 @@ OBJ
 PUB Main{} | wkday, mon, day, yr
 
     setup{}
-    rtc.intmask(%11)
-    repeat 10
-        ser.bin(rtc.interrupt, 8)
-        ser.newline
-    repeat
+
     repeat{}
         wkday := @weekday[(rtc.weekday(-2) - 1) * 4]    ' Pull strings from
         mon := @month[(rtc.months(-2) - 1) * 4]         ' DAT table below

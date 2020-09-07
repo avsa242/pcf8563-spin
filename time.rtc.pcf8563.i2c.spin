@@ -88,7 +88,7 @@ PUB ClockOutFreq(freq): curr_freq
             curr_freq &= core#FD_BITS
             return lookupz(curr_freq: 32768, 1024, 32, 1)
 
-    freq := (curr_freq & core#FD_MASK & core#FE_MASK) | freq
+    freq := ((curr_freq & core#FD_MASK & core#FE_MASK) | freq) & core#CTRL_CLKOUT_MASK
     writereg(core#CTRL_CLKOUT, 1, @freq)
 
 PUB Date(ptr_date)
@@ -132,6 +132,7 @@ PUB IntClear(mask) | tmp
             readreg(core#CTRLSTAT2, 1, @tmp)
             mask := (mask ^ %11) << core#TF             ' Reg bits are inverted
             tmp |= mask
+            tmp &= core#CTRLSTAT2_MASK
             writereg(core#CTRLSTAT2, 1, @tmp)
         other:
             return
@@ -154,7 +155,7 @@ PUB IntMask(mask): curr_mask
         other:
             return curr_mask & core#IE_BITS
 
-    mask := (curr_mask & core#IE_MASK) | mask
+    mask := ((curr_mask & core#IE_MASK) | mask) & core#CTRLSTAT2_MASK
     writereg(core#CTRLSTAT2, 1, @mask)
 
 PUB IntPinState(state): curr_state
@@ -168,7 +169,7 @@ PUB IntPinState(state): curr_state
         other:
             return (curr_state >> core#TI_TP) & %1
 
-    state := (curr_state & core#TI_TP_MASK) | state
+    state := ((curr_state & core#TI_TP_MASK) | state) & core#CTRLSTAT2_MASK
     writereg(core#CTRLSTAT2, 1, @state)
 
 PUB Months(month): curr_month
@@ -207,6 +208,28 @@ PUB Seconds(second): curr_sec
             pollrtctime{}
             return bcd2int(_secs & core#SECS_BITS)
 
+PUB Timer(val): curr_val
+' Set countdown timer value
+'   Valid values: 0..255
+'   Any other value polls the chip and returns the current setting
+'   NOTE: The countdown period in seconds is equal to
+'       Timer() / TimerClockFreq()
+'       e.g., if Timer() is set to 255, and TimerClockFreq() is set to 1,
+'       the period is 255 seconds
+    case val
+        0..255:
+            val &= core#TIMER_MASK
+            writereg(core#TIMER, 1, @val)
+        other:
+            repeat 2                                    ' Datasheet recommends
+                curr_val := 0                           ' 2 reads to check for
+                readreg(core#TIMER, 1, @curr_val.byte[0]) ' consistent results
+                readreg(core#TIMER, 1, @curr_val.byte[1]) '
+                if curr_val.byte[0] == curr_val.byte[1]
+                    curr_val.byte[1] := 0
+                    quit
+            return curr_val & core#TIMER_MASK
+
 PUB TimerClockFreq(freq): curr_freq
 ' Set timer source clock frequency, in Hz
 '   Valid values:
@@ -221,7 +244,7 @@ PUB TimerClockFreq(freq): curr_freq
             curr_freq &= core#TD_BITS
             return lookupz(curr_freq: 4096, 64, 1, 1_60)
 
-    freq := (curr_freq & core#TD_MASK) | freq
+    freq := ((curr_freq & core#TD_MASK) | freq) & core#CTRL_TIMER_MASK
     writereg(core#CTRL_TIMER, 1, @freq)
 
 PUB TimerEnabled(state): curr_state
@@ -236,9 +259,8 @@ PUB TimerEnabled(state): curr_state
         other:
             return ((curr_state >> core#TE) & 1) == 1
 
-    state := (curr_state & core#TE_MASK) | state
+    state := ((curr_state & core#TE_MASK) | state) & core#CTRL_TIMER_MASK
     writereg(core#CTRL_TIMER, 1, @state)
-
 
 PUB Weekday(wkday): curr_wkday
 ' Set day of week
