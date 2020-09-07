@@ -224,6 +224,22 @@ PUB TimerClockFreq(freq): curr_freq
     freq := (curr_freq & core#TD_MASK) | freq
     writereg(core#CTRL_TIMER, 1, @freq)
 
+PUB TimerEnabled(state): curr_state
+' Enable timer
+'   Valid values: TRUE (-1 or 1), FALSE (0)
+'   Any other value polls the chip and returns the current setting
+    curr_state := 0
+    readreg(core#CTRL_TIMER, 1, @curr_state)
+    case ||(state)
+        0, 1:
+            state := ||(state) << core#TE
+        other:
+            return ((curr_state >> core#TE) & 1) == 1
+
+    state := (curr_state & core#TE_MASK) | state
+    writereg(core#CTRL_TIMER, 1, @state)
+
+
 PUB Weekday(wkday): curr_wkday
 ' Set day of week
 '   Valid values: 1..7
