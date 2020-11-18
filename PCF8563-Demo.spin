@@ -16,14 +16,16 @@ CON
     _xinfreq    = cfg#_xinfreq
 
 ' -- User-modifiable constants
-    SER_RX      = 31
-    SER_TX      = 30
     SER_BAUD    = 115_200
 
     I2C_SCL     = 28
     I2C_SDA     = 29
     I2C_HZ      = 400_000
 ' --
+
+' Named constants that can be used in place of numerical month, or weekday
+    #1, JAN, FEB, MAR, APR, MAY, JUN, JUL, AUG, SEP, OCT, NOV, DEC
+    #1, SUN, MON, TUE, WED, THU, FRI, SAT
 
 OBJ
 
@@ -33,14 +35,19 @@ OBJ
     int     : "string.integer"
     rtc     : "time.rtc.pcf8563.i2c"
 
-PUB Main{} | wkday, mon, day, yr
+PUB Main{} | wkday, month, day, yr
 
     setup{}
 
-    repeat{}
-        wkday := @weekday[(rtc.weekday(-2) - 1) * 4]    ' Pull strings from
-        mon := @month[(rtc.months(-2) - 1) * 4]         ' DAT table below
-        day := int.deczeroed(rtc.days(-2), 2)           '
+' Uncomment below to set date/time
+'                hh, mm, ss, MMM, DD, WKDAY, YY
+'    setdatetime(08, 51, 00, NOV, 18, WED, 20)
+
+    repeat
+        rtc.pollrtc{}
+        wkday := @weekdays[(rtc.weekday(-2) - 1) * 4]   ' Pull strings from
+        month := @months[(rtc.month(-2) - 1) * 4]       ' DAT table below
+        day := int.deczeroed(rtc.day(-2), 2)
         yr := rtc.year(-2)
 
         ser.position(0, 3)
@@ -53,33 +60,44 @@ PUB Main{} | wkday, mon, day, yr
         ser.char(":")
         ser.str(int.deczeroed(rtc.seconds(-2), 2))
 
+PUB SetDateTime(h, m, s, mmm, dd, wkday, yy)
+
+    rtc.hours(h)                                ' 00..23
+    rtc.minutes(m)                              ' 00..59
+    rtc.seconds(s)                              ' 00..59
+
+    rtc.month(mmm)                              ' 01..12
+    rtc.day(dd)                                 ' 01..31
+    rtc.weekday(wkday)                          ' 01..07
+    rtc.year(yy)                                ' 00..99
+
 PUB Setup{}
 
-    repeat until ser.startrxtx(SER_RX, SER_TX, 0, SER_BAUD)
+    ser.start(SER_BAUD)
     time.msleep(30)
     ser.clear{}
-    ser.str(string("Serial terminal started", ser#CR, ser#LF))
+    ser.strln(string("Serial terminal started"))
     if rtc.startx(I2C_SCL, I2C_SDA, I2C_HZ)
-        ser.str(string("PCF8563 driver started", ser#CR, ser#LF))
+        ser.strln(string("PCF8563 driver started"))
     else
-        ser.str(string("PCF8563 driver failed to start - halting", ser#CR, ser#LF))
+        ser.strln(string("PCF8563 driver failed to start - halting"))
         rtc.stop{}
         time.msleep(50)
         ser.stop{}
 
 DAT
+' Tables for mapping numbers to weekday and month names
+    weekdays
+            byte    "Sun", 0                    ' 1
+            byte    "Mon", 0                    ' 2
+            byte    "Tue", 0                    ' 3
+            byte    "Wed", 0                    ' 4
+            byte    "Thu", 0                    ' 5
+            byte    "Fri", 0                    ' 6
+            byte    "Sat", 0                    ' 7
 
-    weekday
-            byte    "Sun", 0
-            byte    "Mon", 0
-            byte    "Tue", 0
-            byte    "Wed", 0
-            byte    "Thu", 0
-            byte    "Fri", 0
-            byte    "Sat", 0
-
-    month
-            byte    "Jan", 0
+    months
+            byte    "Jan", 0                    ' 1
             byte    "Feb", 0
             byte    "Mar", 0
             byte    "Apr", 0
@@ -90,7 +108,7 @@ DAT
             byte    "Sep", 0
             byte    "Oct", 0
             byte    "Nov", 0
-            byte    "Dec", 0
+            byte    "Dec", 0                    ' 12
 
 DAT
 {
