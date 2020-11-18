@@ -17,6 +17,7 @@ CON
 
 ' -- User-modifiable constants
     SER_BAUD    = 2_000_000
+    LED         = cfg#LED1
 
     I2C_SCL     = 26
     I2C_SDA     = 27
@@ -45,18 +46,18 @@ PUB Main() | wkday, month, day, yr
 
     repeat
         rtc.pollrtc()
-        wkday := @weekdays[(rtc.weekday(-2) - 1) * 4]   ' Pull strings from
-        month := @months[(rtc.month(-2) - 1) * 4]       ' DAT table below
+        wkday := @wkday_name[(rtc.weekday(-2) - 1) * 4] ' Pull strings from
+        month := @month_name[(rtc.month(-2) - 1) * 4]   ' DAT table below
         day := int.deczeroed(rtc.day(-2), 2)
         yr := rtc.year(-2)
 
         ser.position(0, 3)
         ser.str(wkday)
-        ser.printf(string(" %s %s 20%d "), day, mon, yr, 0, 0, 0)
+        ser.printf(string(" %s %s 20%d "), day, month, yr, 0, 0, 0)
 
-        ser.str(int.deczeroed(rtc.hours(-2), 2))        ' Discrete statements
-        ser.char(":")                                   ' due to a bug in
-        ser.str(int.deczeroed(rtc.minutes(-2), 2))      ' string.integer
+        ser.str(int.deczeroed(rtc.hours(-2), 2))    ' Discrete statements
+        ser.char(":")                               ' due to a bug in
+        ser.str(int.deczeroed(rtc.minutes(-2), 2))  ' string.integer
         ser.char(":")
         ser.str(int.deczeroed(rtc.seconds(-2), 2))
 
@@ -86,7 +87,7 @@ PUB Setup()
 
 DAT
 ' Tables for mapping numbers to weekday and month names
-    weekdays
+    wkday_name
             byte    "Sun", 0                    ' 1
             byte    "Mon", 0                    ' 2
             byte    "Tue", 0                    ' 3
@@ -95,7 +96,7 @@ DAT
             byte    "Fri", 0                    ' 6
             byte    "Sat", 0                    ' 7
 
-    months
+    month_name
             byte    "Jan", 0                    ' 1
             byte    "Feb", 0
             byte    "Mar", 0
