@@ -1,11 +1,11 @@
 {
     --------------------------------------------
-    Filename: time.rtc.pcf8563.i2c.spin2
+    Filename: time.rtc.pcf8563.i2c.spin
     Author: Jesse Burt
-    Description: Driver for the PCF8563 Real Time Clock (P2 version)
-    Copyright (c) 2020
-    Started Sep 7, 2020
-    Updated Nov 18, 2020
+    Description: Driver for the PCF8563 Real Time Clock
+    Copyright (c) 2021
+    Started Sep 6, 2020
+    Updated Mar 20, 2021
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -40,20 +40,22 @@ OBJ
 PUB Null()
 ' This is not a top-level object
 
-PUB Start(SCL_PIN, SDA_PIN, I2C_HZ=100_000): okay
-
-    if lookdown(SCL_PIN: 0..63) and lookdown(SDA_PIN: 0..63)
-        if I2C_HZ <= core.I2C_MAX_FREQ
-            if okay := i2c.setup(SCL_PIN, SDA_PIN, I2C_HZ)
-                waitms(1)
-                if i2c.present (SLAVE_WR)       ' Response from device?
-                                   ' Initial RTC read
-                    return okay
-
-    return FALSE                                ' Something above failed
+PUB Startx(SCL_PIN, SDA_PIN, I2C_HZ=DEF_HZ): status
+' Start using custom I/O pins and bus speed (default: 100kHz)
+    if lookdown(SCL_PIN: 0..63) and lookdown(SDA_PIN: 0..63) and {
+}   I2C_HZ <= core.I2C_MAX_FREQ
+        if (status := i2c.init(SCL_PIN, SDA_PIN, I2C_HZ))
+            waitms(1)
+            if i2c.present (SLAVE_WR)       ' test device bus presence
+                return status
+    ' if this point is reached, something above failed
+    ' Double check I/O pin assignments, connections, power
+    ' Lastly - make sure you have at least one free core/cog
+    return FALSE
 
 PUB Stop()
 
+    i2c.deinit()
 
 PUB Defaults()
 ' Factory default settings
@@ -92,7 +94,7 @@ PUB DeviceID(): id
 PUB Day(d): curr_day
 ' Set day of month
 '   Valid values: 1..31
-'   Any other value polls the RTC and returns the current day
+'   Any other value returns the last read current day
     case d
         1..31:
             d := int2bcd(d)
@@ -103,7 +105,7 @@ PUB Day(d): curr_day
 PUB Hours(hr): curr_hr
 ' Set hours
 '   Valid values: 0..23
-'   Any other value polls the RTC and returns the current hour
+'   Any other value returns the last read current hour
     case hr
         0..23:
             hr := int2bcd(hr)
@@ -159,7 +161,7 @@ PUB IntPinState(state): curr_state
     case state
         WHEN_TF_ACTIVE, INT_PULSES:
         other:
-            return (curr_state >> core.TI_TP) & %1
+            return (curr_state >> core.TI_TP) & 1
 
     state := ((curr_state & core.TI_TP_MASK) | state) & core.CTRLSTAT2_MASK
     writereg(core.CTRLSTAT2, 1, @state)
@@ -167,7 +169,7 @@ PUB IntPinState(state): curr_state
 PUB Month(m): curr_month
 ' Set month
 '   Valid values: 1..12
-'   Any other value polls the RTC and returns the current month
+'   Any other value returns the last read current month
     case m
         1..12:
             m := int2bcd(m)
@@ -178,7 +180,7 @@ PUB Month(m): curr_month
 PUB Minutes(minute): curr_min
 ' Set minutes
 '   Valid values: 0..59
-'   Any other value polls the RTC and returns the current minute
+'   Any other value returns the last read current minute
     case minute
         0..59:
             minute := int2bcd(minute)
@@ -213,7 +215,6 @@ PUB Timer(val): curr_val
 '       the period is 255 seconds
     case val
         0..255:
-            val &= core.TIMER_MASK
             writereg(core.TIMER, 1, @val)
         other:
             repeat 2                                    ' Datasheet recommends
@@ -263,7 +264,7 @@ PUB TimerEnabled(state): curr_state
 PUB Weekday(wkday): curr_wkday
 ' Set day of week
 '   Valid values: 1..7
-'   Any other value polls the RTC and returns the current day of week
+'   Any other value returns the last read current day of week
     case wkday
         1..7:
             wkday := int2bcd(wkday-1)
@@ -274,7 +275,7 @@ PUB Weekday(wkday): curr_wkday
 PUB Year(yr): curr_yr
 ' Set 2-digit year
 '   Valid values: 0..99
-'   Any other value polls the RTC and returns the current year
+'   Any other value returns the last read current year
     case yr
         0..99:
             yr := int2bcd(yr)
@@ -290,7 +291,7 @@ PRI int2bcd(int): bcd
 ' Convert integer to BCD (Binary Coded Decimal)
     return ((int / 10) << 4) + (int // 10)
 
-PRI readReg(reg_nr, nr_bytes, ptr_buff) | cmd_pkt, tmp
+PRI readReg(reg_nr, nr_bytes, ptr_buff) | cmd_pkt
 ' Read nr_bytes from device into ptr_buff
     case reg_nr                                 ' Validate reg
         $00..$0f:
@@ -298,17 +299,16 @@ PRI readReg(reg_nr, nr_bytes, ptr_buff) | cmd_pkt, tmp
             cmd_pkt.byte[1] := reg_nr
 
             i2c.start()                         ' Send reg to read
-            repeat tmp from 0 to 1
-                i2c.write(cmd_pkt.byte[tmp])
-            i2c.start()
+            i2c.wrblock_lsbf(@cmd_pkt, 2)
+
+            i2c.start()                         ' read it
             i2c.write(SLAVE_RD)
-            repeat tmp from 0 to nr_bytes-1     ' read it
-                byte[ptr_buff][tmp] := i2c.read(tmp == nr_bytes-1)
+            i2c.rdblock_lsbf(ptr_buff, nr_bytes, i2c.NAK)
             i2c.stop()
         other:
             return
 
-PRI writeReg(reg_nr, nr_bytes, ptr_buff) | cmd_pkt, tmp
+PRI writeReg(reg_nr, nr_bytes, ptr_buff) | cmd_pkt
 ' Write nr_bytes from ptr_buff to device
     case reg_nr
         $00..$0f:                               ' Validate reg
@@ -316,11 +316,9 @@ PRI writeReg(reg_nr, nr_bytes, ptr_buff) | cmd_pkt, tmp
             cmd_pkt.byte[1] := reg_nr
 
             i2c.start()                         ' Send reg to write
-            repeat tmp from 0 to 1
-                i2c.write(cmd_pkt.byte[tmp])
+            i2c.wrblock_lsbf(@cmd_pkt, 2)
 
-            repeat tmp from 0 to nr_bytes-1
-                i2c.write(byte[ptr_buff][tmp])  ' Write it
+            i2c.wrblock_lsbf(ptr_buff, nr_bytes)' write it
             i2c.stop()
         other:
             return

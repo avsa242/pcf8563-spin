@@ -5,7 +5,7 @@
     Description: Driver for the PCF8563 Real Time Clock
     Copyright (c) 2021
     Started Sep 6, 2020
-    Updated Jan 6, 2021
+    Updated Mar 20, 2021
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -40,25 +40,27 @@ OBJ
 PUB Null{}
 ' This is not a top-level object
 
-PUB Start: okay
+PUB Start: status
 ' Start using 'default' Propeller I2C pins,
 '   at safest universal speed of 100kHz
-    okay := startx (DEF_SCL, DEF_SDA, DEF_HZ)
+    return startx(DEF_SCL, DEF_SDA, DEF_HZ)
 
-PUB Startx(SCL_PIN, SDA_PIN, I2C_HZ): okay
-
-    if lookdown(SCL_PIN: 0..31) and lookdown(SDA_PIN: 0..31)
-        if I2C_HZ =< core#I2C_MAX_FREQ
-            if okay := i2c.setupx(SCL_PIN, SDA_PIN, I2C_HZ)
-                time.msleep(1)
-                if i2c.present (SLAVE_WR)       ' Response from device?
-                    return okay
-
-    return FALSE                                ' Something above failed
+PUB Startx(SCL_PIN, SDA_PIN, I2C_HZ): status
+' Start using custom I/O pins and bus speed
+    if lookdown(SCL_PIN: 0..31) and lookdown(SDA_PIN: 0..31) and {
+}   I2C_HZ =< core#I2C_MAX_FREQ
+        if (status := i2c.init(SCL_PIN, SDA_PIN, I2C_HZ))
+            time.msleep(1)
+            if i2c.present (SLAVE_WR)       ' test device bus presence
+                return status
+    ' if this point is reached, something above failed
+    ' Double check I/O pin assignments, connections, power
+    ' Lastly - make sure you have at least one free core/cog
+    return FALSE
 
 PUB Stop{}
 
-    i2c.terminate
+    i2c.deinit{}
 
 PUB Defaults{}
 ' Factory default settings
@@ -294,7 +296,7 @@ PRI int2bcd(int): bcd
 ' Convert integer to BCD (Binary Coded Decimal)
     return ((int / 10) << 4) + (int // 10)
 
-PRI readReg(reg_nr, nr_bytes, ptr_buff) | cmd_pkt, tmp
+PRI readReg(reg_nr, nr_bytes, ptr_buff) | cmd_pkt
 ' Read nr_bytes from device into ptr_buff
     case reg_nr                                 ' Validate reg
         $00..$0f:
@@ -302,16 +304,16 @@ PRI readReg(reg_nr, nr_bytes, ptr_buff) | cmd_pkt, tmp
             cmd_pkt.byte[1] := reg_nr
 
             i2c.start{}                         ' Send reg to read
-            i2c.wr_block(@cmd_pkt, 2)
+            i2c.wrblock_lsbf(@cmd_pkt, 2)
 
-            i2c.start{}
+            i2c.start{}                         ' read it
             i2c.write(SLAVE_RD)
-            i2c.rd_block(ptr_buff, nr_bytes, i2c#NAK)  ' Read it
+            i2c.rdblock_lsbf(ptr_buff, nr_bytes, i2c#NAK)
             i2c.stop{}
         other:
             return
 
-PRI writeReg(reg_nr, nr_bytes, ptr_buff) | cmd_pkt, tmp
+PRI writeReg(reg_nr, nr_bytes, ptr_buff) | cmd_pkt
 ' Write nr_bytes from ptr_buff to device
     case reg_nr
         $00..$0f:                               ' Validate reg
@@ -319,10 +321,9 @@ PRI writeReg(reg_nr, nr_bytes, ptr_buff) | cmd_pkt, tmp
             cmd_pkt.byte[1] := reg_nr
 
             i2c.start{}                         ' Send reg to write
-            i2c.wr_block(@cmd_pkt, 2)
+            i2c.wrblock_lsbf(@cmd_pkt, 2)
 
-            repeat tmp from 0 to nr_bytes-1
-                i2c.write(byte[ptr_buff][tmp])  ' Write it
+            i2c.wrblock_lsbf(ptr_buff, nr_bytes)' write it
             i2c.stop{}
         other:
             return
