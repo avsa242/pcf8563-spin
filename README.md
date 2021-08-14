@@ -7,7 +7,7 @@ This is a P8X32A/Propeller, P2X8C4M64P/Propeller 2 driver object for the PCF8563
 
 ## Salient Features
 
-* I2C connection at up to 400kHz
+* I2C connection at up to ~30kHz (P1: SPIN I2C), 400kHz (P1: PASM I2C, P2)
 * Read and set days, hours, months, minutes, seconds, weekday, year (individually)
 * Clock data integrity flag
 * Set, clear, query interrupts
