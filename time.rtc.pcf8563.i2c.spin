@@ -5,7 +5,7 @@
     Description: Driver for the PCF8563 Real Time Clock
     Copyright (c) 2021
     Started Sep 6, 2020
-    Updated Aug 14, 2021
+    Updated Aug 15, 2021
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -47,23 +47,13 @@ PUB Null{}
 PUB Start{}: status
 ' Start using 'default' Propeller I2C pins,
 '   at safest universal speed of 100kHz
-#ifdef PCF8563_SPIN
-    return startx(DEF_SCL, DEF_SDA)
-#elseifdef PCF8563_PASM
     return startx(DEF_SCL, DEF_SDA, DEF_HZ)
-#endif
 
-#ifdef PCF8563_SPIN
-PUB Startx(SCL_PIN, SDA_PIN): status
-    if lookdown(SCL_PIN: 0..31) and lookdown(SDA_PIN: 0..31)
-        if (status := i2c.init(SCL_PIN, SDA_PIN))
-#elseifdef PCF8563_PASM
 PUB Startx(SCL_PIN, SDA_PIN, I2C_HZ): status
 ' Start using custom I/O pins and bus speed
     if lookdown(SCL_PIN: 0..31) and lookdown(SDA_PIN: 0..31) and {
 }   I2C_HZ =< core#I2C_MAX_FREQ
         if (status := i2c.init(SCL_PIN, SDA_PIN, I2C_HZ))
-#endif
             time.msleep(1)
             if i2c.present(SLAVE_WR)            ' test device bus presence
                 return status

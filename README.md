@@ -17,7 +17,7 @@ This is a P8X32A/Propeller, P2X8C4M64P/Propeller 2 driver object for the PCF8563
 ## Requirements
 
 P1/SPIN1:
-* 1 extra core/cog for the PASM I2C engine
+* 1 extra core/cog for the PASM I2C engine (none if SPIN I2C engine is used)
 
 P2/SPIN2:
 * p2-spin-standard-library

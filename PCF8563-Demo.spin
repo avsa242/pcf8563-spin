@@ -5,7 +5,7 @@
     Description: Demo of the PCF8563 driver
     Copyright (c) 2021
     Started Sep 6, 2020
-    Updated Aug 14, 2021
+    Updated Aug 15, 2021
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -82,18 +82,15 @@ PUB Setup{}
     time.msleep(30)
     ser.clear{}
     ser.strln(string("Serial terminal started"))
+
+    if rtc.startx(I2C_SCL, I2C_SDA, I2C_HZ)
 #ifdef PCF8563_SPIN
-    if rtc.startx(I2C_SCL, I2C_SDA)
         ser.strln(string("PCF8563 driver started (I2C-SPIN)"))
 #elseifdef PCF8563_PASM
-    if rtc.startx(I2C_SCL, I2C_SDA, I2C_HZ)
         ser.strln(string("PCF8563 driver started (I2C-PASM)"))
 #endif
     else
         ser.strln(string("PCF8563 driver failed to start - halting"))
-        rtc.stop{}
-        time.msleep(50)
-        ser.stop{}
         repeat
 
 DAT
