@@ -3,9 +3,9 @@
     Filename: PCF8563-Demo.spin2
     Author: Jesse Burt
     Description: Demo of the PCF8563 driver
-    Copyright (c) 2021
+    Copyright (c) 2022
     Started Sep 6, 2020
-    Updated Mar 20, 2021
+    Updated Feb 4, 2022
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -34,7 +34,7 @@ OBJ
     ser     : "com.serial.terminal.ansi"
     time    : "time"
     int     : "string.integer"
-    rtc     : "time.rtc.pcf8563.i2c"
+    rtc     : "time.rtc.pcf8563"
 
 PUB Main() | wkday, month, date, yr
 
@@ -83,8 +83,6 @@ PUB Setup()
         ser.strln(string("PCF8563 driver started"))
     else
         ser.strln(string("PCF8563 driver failed to start - halting"))
-        rtc.stop()
-        waitms(50)
         repeat
 
 DAT

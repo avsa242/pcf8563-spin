@@ -37,7 +37,7 @@ OBJ
     ser     : "com.serial.terminal.ansi"
     time    : "time"
     int     : "string.integer"
-    rtc     : "time.rtc.pcf8563.i2c"
+    rtc     : "time.rtc.pcf8563"
 
 PUB Main{} | wkday, month, date, yr
 
