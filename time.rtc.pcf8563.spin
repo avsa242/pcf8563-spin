@@ -5,7 +5,7 @@
     Description: Driver for the PCF8563 Real Time Clock
     Copyright (c) 2022
     Started Sep 6, 2020
-    Updated May 25, 2022
+    Updated Jun 26, 2022
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -23,6 +23,10 @@ CON
 ' /INT pin active state
     WHEN_TF_ACTIVE      = 0
     INT_PULSES          = 1 << core#TI_TP
+
+' Operating modes
+    CLKRUN              = 0
+    CLKSTOP             = 1
 
 VAR
 
@@ -164,6 +168,21 @@ PUB Month{}: curr_month
 PUB Minutes{}: curr_min
 ' Get current minute
     return bcd2int(_mins & core#MINUTES_MASK)
+
+PUB OpMode(mode): curr_mode
+' Set RTC internal operating mode
+'   CLKRUN (0): normal operation; RTC source clock runs
+'   CLKSTOP (1): RTC clock is stopped (32.768kHz CLKOUT still available)
+    curr_mode := 0
+    readreg(core#CTRLSTAT1, 1, @curr_mode)
+    case mode
+        CLKRUN, CLKSTOP:
+            mode <<= core#STOP
+        other:
+            return ((curr_mode >> core#STOP) & 1)
+
+    mode := ((curr_mode & core#STOP_MASK) | mode)
+    writereg(core#CTRLSTAT1, 1, @mode)
 
 PUB PollRTC{}
 ' Read the time data from the RTC and store it in hub RAM

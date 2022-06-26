@@ -3,15 +3,12 @@
     Filename: PCF8563-Demo.spin
     Author: Jesse Burt
     Description: Demo of the PCF8563 driver
-    Copyright (c) 2021
+    Copyright (c) 2022
     Started Sep 6, 2020
-    Updated Aug 15, 2021
+    Updated Jun 26, 2022
     See end of file for terms of use.
     --------------------------------------------
 }
-' Uncomment one of the below lines to choose the SPIN or PASM-based I2C engine
-#define PCF8563_SPIN
-'#define PCF8563_PASM
 
 CON
 
@@ -34,7 +31,7 @@ CON
 OBJ
 
     cfg     : "core.con.boardcfg.flip"
-    ser     : "com.serial.terminal.ansi"
+    ser     : "com.serial.terminal.ansi-new"
     time    : "time"
     int     : "string.integer"
     rtc     : "time.rtc.pcf8563"
@@ -59,11 +56,8 @@ PUB Main{} | wkday, month, date, yr
         ser.str(wkday)
         ser.printf3(string(" %s %s 20%d "), date, month, yr)
 
-        ser.str(int.deczeroed(rtc.hours{}, 2))  ' Discrete statements
-        ser.char(":")                           ' due to a bug in
-        ser.str(int.deczeroed(rtc.minutes{}, 2))' string.integer
-        ser.char(":")
-        ser.str(int.deczeroed(rtc.seconds{}, 2))
+        ser.printf3(@"%02.2d:%02.2d:%02.2d", rtc.hours{}, rtc.minutes, {
+}       rtc.seconds{})
 
 PUB SetDateTime(h, m, s, mmm, dd, wkday, yy)
 
