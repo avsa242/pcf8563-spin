@@ -6,7 +6,7 @@
         * Time/Date output
     Copyright (c) 2022
     Started Sep 6, 2020
-    Updated Aug 2, 2022
+    Updated Aug 3, 2022
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -51,7 +51,7 @@ PUB Main()
 ' Uncomment below to set date/time
 '   (only needs to be done once as long as RTC remains powered afterwards)
 '                hh, mm, ss, MMM, DD, WKDAY, YY
-'    setdatetime(18, 48, 00, AUG, 02, TUE, 22)
+'    set_date_time(18, 48, 00, AUG, 02, TUE, 22)
 
     demo()
 
