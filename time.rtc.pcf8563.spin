@@ -146,7 +146,7 @@ PUB int_mask(mask): curr_mask
 PUB int_pin_state(state): curr_state
 ' Set interrupt pin active state
 '   WHEN_TF_ACTIVE (0): /INT is active when timer interrupt asserted
-'   INT_PULSES (1): /INT pulses at rate set by TimerClockFreq()
+'   INT_PULSES (1): /INT pulses at rate set by timer_clk_freq()
     curr_state := 0
     readreg(core#CTRLSTAT2, 1, @curr_state)
     case state
