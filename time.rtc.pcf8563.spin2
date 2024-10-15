@@ -95,23 +95,25 @@ PUB clk_data_ok(): flag
     return ( _clkdata_ok == 0 )
 
 
-PUB clkout_freq(freq=-2): curr_freq
+PUB clkout_freq(freq=-2): c
 ' Set frequency of CLKOUT pin, in Hz
 '   Valid values: 0, 1, 32, 1024, 32768
 '   Any other value polls the chip and returns the current setting
-    curr_freq := 0
-    readreg(core.CTRL_CLKOUT, 1, @curr_freq)
+    c := readreg(core.CTRL_CLKOUT)
     case freq
-        0:
-            freq := 1 << core.FE                ' Turn off clock output
+        0:                                      ' Turn off clock output
+            freq := 1 << core.FE
         1, 32, 1024, 32768:
+            ' map frequency to register value
             freq := lookdownz(freq: 32768, 1024, 32, 1)
         other:
-            curr_freq &= core.FD_BITS
-            return lookupz(curr_freq: 32768, 1024, 32, 1)
+            ' map register value to frequency
+            if ( c & core.CLK_OUT_OFF )
+                return 0
+            else
+                return lookupz( (c & core.FD_BITS): 32768, 1024, 32, 1)
 
-    freq := ((curr_freq & core.FD_MASK & core.FE_MASK) | freq)
-    writereg(core.CTRL_CLKOUT, 1, @freq)
+    writereg(core.CTRL_CLKOUT, (c & core.CTRL_CLKOUT_MASK) | freq )
 
 
 PUB int_clear(mask) | tmp
@@ -124,70 +126,68 @@ PUB int_clear(mask) | tmp
 '   Any other value is ignored
     case mask
         %01, %10, %11:
-            readreg(core.CTRLSTAT2, 1, @tmp)
             mask := (mask ^ %11) << core.TF     ' Reg bits are inverted
-            tmp |= mask
-            tmp &= core.CTRLSTAT2_MASK
-            writereg(core.CTRLSTAT2, 1, @tmp)
+            tmp := (readreg(core.CTRLSTAT2) | mask) & core.CTRLSTAT2_MASK
+            writereg(core.CTRLSTAT2, tmp)
         other:
             return
 
 
-PUB interrupt(): flags
+PUB interrupt(): f
 ' Flag indicating one or more interrupts asserted
-    readreg(core.CTRLSTAT2, 1, @flags)
-    flags := (flags >> core.TF) & core.IF_BITS
+    return ( (readreg(core.CTRLSTAT2) >> core.TF) & core.IF_BITS )
 
 
-PUB int_mask(mask=-2): curr_mask
+PUB int_mask(mask=-2): c
 ' Set interrupt mask
 '   Valid values:
 '       Bits: 1..0
 '           1: enable alarm interrupt
 '           0: enable timer interrupt
 '   Any other value polls the chip and returns the current setting
-    readreg(core.CTRLSTAT2, 1, @curr_mask)
+    c := readreg(core.CTRLSTAT2)
     case mask
         %00..%11:
-            mask := ((curr_mask & core.IE_MASK) | mask)
-            writereg(core.CTRLSTAT2, 1, @mask)
+            writereg(core.CTRLSTAT2, (c & core.IE_MASK) | mask)
         other:
-            return (curr_mask & core.IE_BITS)
+            return (c & core.IE_BITS)
 
 
-PUB int_pin_state(state=-2): curr_state
+PUB int_pin_state(state=-2): c
 ' Set interrupt pin active state
 '   WHEN_TF_ACTIVE (0): /INT is active when timer interrupt asserted
-'   INT_PULSES (1): /INT pulses at rate set by timer_clk_freq()
-    curr_state := 0
-    readreg(core.CTRLSTAT2, 1, @curr_state)
+'   INT_PULSES (1):     /INT pulses at rate set by timer_clk_freq()
+    c := readreg(core.CTRLSTAT2)
     case state
         WHEN_TF_ACTIVE, INT_PULSES:
-            state := ((curr_state & core.TI_TP_MASK) | state)
-            writereg(core.CTRLSTAT2, 1, @state)
+            writereg(core.CTRLSTAT2, (c & core.TI_TP_MASK) | state)
         other:
-            return ((curr_state >> core.TI_TP) & 1)
+            return ((c >> core.TI_TP) & 1)
 
 
-PUB opmode(mode=-2): curr_mode
+PUB opmode(mode=-2): c
 ' Set RTC internal operating mode
-'   CLKRUN (0): normal operation; RTC source clock runs
-'   CLKSTOP (1): RTC clock is stopped (32.768kHz CLKOUT still available)
-    curr_mode := 0
-    readreg(core.CTRLSTAT1, 1, @curr_mode)
+'   CLKRUN (0):     normal operation; RTC source clock runs
+'   CLKSTOP (1):    RTC clock is stopped (32.768kHz CLKOUT still available)
+    c := readreg(core.CTRLSTAT1)
     case mode
         CLKRUN, CLKSTOP:
-            mode <<= core.STOP
-            mode := ((curr_mode & core.STOP_MASK) | mode)
-            writereg(core.CTRLSTAT1, 1, @mode)
+            writereg(core.CTRLSTAT1, ( (c & core.STOP_MASK) | (mode << core.STOP) ) )
         other:
-            return ((curr_mode >> core.STOP) & 1)
+            return ((c >> core.STOP) & 1)
 
 
 PUB poll_rtc()
 ' Read the time data from the RTC and store it in hub RAM
 ' Update the clock integrity status bit from the RTC
-    readreg(core.VL_SECS, 7, @_secs)
+    i2c.start()
+    i2c.write(SLAVE_WR)
+    i2c.write(core.VL_SECS)
+    i2c.start()
+    i2c.write(SLAVE_RD)
+    i2c.rdblock_lsbf(@_secs, 7, i2c.NAK)
+    i2c.stop()
+
     _clkdata_ok := (_secs >> core.VL) & 1       ' Clock integrity bit
     _secs &= core.SECS_BITS
     _mins &= core.MINUTES_MASK
@@ -204,8 +204,7 @@ PUB set_date(d)
 '   Any other value is ignored
     case d
         1..31:
-            d := int2bcd(d)
-            writereg(core.DAYS, 1, @d)
+            writereg(core.DAYS, int2bcd(d) )
         other:
             return
 
@@ -216,8 +215,7 @@ PUB set_hours(h)
 '   Any other value is ignored
     case h
         0..23:
-            h := int2bcd(h)
-            writereg(core.HOURS, 1, @h)
+            writereg(core.HOURS, int2bcd(h) )
         other:
             return
 
@@ -228,8 +226,7 @@ PUB set_minutes(m)
 '   Any other value is ignored
     case m
         0..59:
-            m := int2bcd(m)
-            writereg(core.MINUTES, 1, @m)
+            writereg(core.MINUTES, int2bcd(m) )
         other:
             return
 
@@ -240,8 +237,7 @@ PUB set_month(m)
 '   Any other value is ignored
     case m
         1..12:
-            m := int2bcd(m)
-            writereg(core.CENTMONTHS, 1, @m)
+            writereg(core.CENTMONTHS, int2bcd(m) )
         other:
             return
 
@@ -252,8 +248,7 @@ PUB set_seconds(s)
 '   Any other value is ignored
     case s
         0..59:
-            s := int2bcd(s)
-            writereg(core.VL_SECS, 1, @s)
+            writereg(core.VL_SECS, int2bcd(s) )
         other:
             return
 
@@ -264,8 +259,7 @@ PUB set_weekday(w)
 '   Any other value is ignored
     case w
         1..7:
-            w := int2bcd(w-1)
-            writereg(core.WEEKDAYS, 1, @w)
+            writereg(core.WEEKDAYS, int2bcd(w-1) )
         other:
             return
 
@@ -276,21 +270,20 @@ PUB set_year(y)
 '   Any other value is ignored
     case y
         0..99:
-            y := int2bcd(y)
-            writereg(core.YEARS, 1, @y)
+            writereg(core.YEARS, int2bcd(y) )
         other:
             return
 
 
 VAR byte _timer
-PUB set_timer(val): curr_val
+PUB set_timer(val): c
 ' Set countdown timer value
 '   Valid values: 0..255 (clamped to range)
 '   NOTE: The countdown period in seconds is equal to timer() / timer_clk_freq()
 '       e.g., if set_timer() is set to 255, and timer_clk_freq() is set to 1,
 '       the period is 255 seconds
     _timer := val := (0 #> val <# 255)
-    writereg(core.TIMER, 1, @val)
+    writereg(core.TIMER, val)
 
 
 PUB timer(): t
@@ -300,38 +293,33 @@ PUB timer(): t
     return _timer
 
 
-PUB timer_clk_freq(freq=-2): curr_freq
+PUB timer_clk_freq(freq=-2): c
 ' Set timer source clock frequency, in Hz
 '   Valid values:
 '       1_60 (1/60Hz), 1, 64, 4096
 '   Any other value polls the chip and returns the current setting
-    curr_freq := 0
-    readreg(core.CTRL_TIMER, 1, @curr_freq)
+    c := readreg(core.CTRL_TIMER)
     case freq
         1_60, 1, 64, 4096:
-            freq := lookdownz(freq: 4096, 64, 1, 1_60)
-            freq := ((curr_freq & core.TD_MASK) | freq)
-            writereg(core.CTRL_TIMER, 1, @freq)
+            writereg(core.CTRL_TIMER, ((c & core.TD_MASK) | lookdownz(freq: 4096, 64, 1, 1_60) ) )
         other:
-            curr_freq &= core.TD_BITS
-            return lookupz(curr_freq: 4096, 64, 1, 1_60)
+            c &= core.TD_BITS
+            return lookupz(c: 4096, 64, 1, 1_60)
 
 
-PUB timer_ena(state=-2): curr_state
+PUB timer_ena(state=-2): c
 ' Enable timer
 '   Valid values: TRUE (-1 or 1), FALSE (0)
 '   Any other value polls the chip and returns the current setting
-    curr_state := 0
-    readreg(core.CTRL_TIMER, 1, @curr_state)
+    c := readreg(core.CTRL_TIMER)
     case abs(state)
         0, 1:
             state := abs(state) << core.TE
             if ( state == 0 )                   ' If disabling the timer,
                 timer_clk_freq(1_60)            ' set the freq to 1/60Hz for the lowest power usage
-            state := ((curr_state & core.TE_MASK) | state)
-            writereg(core.CTRL_TIMER, 1, @state)
+            writereg(core.CTRL_TIMER, ((c & core.TE_MASK) | state) )
         other:
-            return (((curr_state >> core.TE) & 1) == 1)
+            return (((c >> core.TE) & 1) == 1)
 
 
 PUB timer_remaining(): t | tmp[2]
@@ -339,48 +327,37 @@ PUB timer_remaining(): t | tmp[2]
     { NXP recommends reading the current countdown value twice and checking for consistent results
         We'll try this two times, and skip the second try if the values were good the first time }
 '   Returns: current timer value, or 0 on failure
-    repeat 2
+    repeat 2                                    ' up to two attempts
         t := tmp := 0
-        readreg(core.TIMER, 1, @tmp[0])
-        readreg(core.TIMER, 1, @tmp[1])
-        if (tmp[0] == tmp[1])                   ' reads matched; return
+        tmp[0] := readreg(core.TIMER)
+        tmp[1] := readreg(core.TIMER)
+        if ( tmp[0] == tmp[1] )                 ' reads matched; return
             t := tmp[0]
-            quit
+            quit                                ' match; skip the second attempt
     return
 
 
-PRI readreg(reg_nr, nr_bytes, ptr_buff) | cmd_pkt
+PRI readreg(reg_nr): v | cmd_pkt
 ' Read nr_bytes from device into ptr_buff
-    case reg_nr                                 ' Validate reg
-        $00..$0f:
-            cmd_pkt.byte[0] := SLAVE_WR
-            cmd_pkt.byte[1] := reg_nr
-
-            i2c.start()                         ' Send reg to read
-            i2c.wrblock_lsbf(@cmd_pkt, 2)
-
-            i2c.start()                         ' read it
-            i2c.write(SLAVE_RD)
-            i2c.rdblock_lsbf(ptr_buff, nr_bytes, i2c.NAK)
-            i2c.stop()
-        other:
-            return
+    v := 0
+    cmd_pkt.byte[0] := SLAVE_WR
+    cmd_pkt.byte[1] := reg_nr
+    i2c.start()                                 ' Send reg to read
+    i2c.wrblock_lsbf(@cmd_pkt, 2)
+    i2c.start()
+    i2c.write(SLAVE_RD)
+    i2c.rdblock_lsbf(@v, 1, i2c.NAK)            ' read reg into the return var
+    i2c.stop()
 
 
-PRI writereg(reg_nr, nr_bytes, ptr_buff) | cmd_pkt
+PRI writereg(reg_nr, val) | cmd_pkt
 ' Write nr_bytes from ptr_buff to device
-    case reg_nr
-        $00..$0f:                               ' Validate reg
-            cmd_pkt.byte[0] := SLAVE_WR
-            cmd_pkt.byte[1] := reg_nr
-
-            i2c.start()                         ' Send reg to write
-            i2c.wrblock_lsbf(@cmd_pkt, 2)
-
-            i2c.wrblock_lsbf(ptr_buff, nr_bytes)' write it
-            i2c.stop()
-        other:
-            return
+    cmd_pkt.byte[0] := SLAVE_WR
+    cmd_pkt.byte[1] := reg_nr
+    i2c.start()                                 ' Send reg to write
+    i2c.wrblock_lsbf(@cmd_pkt, 2)
+    i2c.wrblock_lsbf(@val, 1)                   ' write it
+    i2c.stop()
 
 
 DAT

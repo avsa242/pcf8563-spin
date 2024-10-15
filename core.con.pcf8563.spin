@@ -31,8 +31,8 @@ CON
         TF          = 2
         AIE         = 1
         TIE         = 0
-        IF_BITS     = %11
-        IE_BITS     = %11
+        IF_BITS     = %11                       ' AF|TF
+        IE_BITS     = %11                       ' AIE|TIE
         TI_TP_MASK  = (1 << TI_TP) ^ CTRLSTAT2_MASK
         AF_MASK     = (1 << AF) ^ CTRLSTAT2_MASK
         TF_MASK     = (1 << TF) ^ CTRLSTAT2_MASK
@@ -105,6 +105,7 @@ CON
         FD_BITS     = %11
         FE_MASK     = (1 << FE) ^ CTRL_CLKOUT_MASK
         FD_MASK     = FD_BITS ^ CTRL_CLKOUT_MASK
+        CLK_OUT_OFF = (1 << FE)
 
     CTRL_TIMER      = $0E
     CTRL_TIMER_MASK = $83
