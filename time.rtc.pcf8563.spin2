@@ -1,32 +1,37 @@
 {
-    --------------------------------------------
-    Filename: time.rtc.pcf8563.spin2
-    Author: Jesse Burt
-    Description: Driver for the PCF8563 Real Time Clock (P2 version)
-    Copyright (c) 2022
-    Started Sep 6, 2020
-    Updated Nov 27, 2022
-    See end of file for terms of use.
-    --------------------------------------------
+----------------------------------------------------------------------------------------------------
+    Filename:       time.rtc.pcf8563.spin2 
+    Description:    Driver for the PCF8563 Real Time Clock
+    Author:         Jesse Burt
+    Started:        Sep 6, 2020
+    Updated:        Oct 15, 2024
+    Copyright (c) 2024 - See end of file for terms of use.
+----------------------------------------------------------------------------------------------------
 }
 
-#include "time.rtc.common.spin2h"
+#include "time.rtc.common.spin2h"               ' use code common to all RTC drivers
 
 CON
 
-    SLAVE_WR            = core.SLAVE_ADDR
-    SLAVE_RD            = core.SLAVE_ADDR|1
+    { default I/O settings; these can be overridden in the parent object }
+    SCL             = 0
+    SDA             = 1
+    I2C_FREQ        = 100_000
+    I2C_ADDR        = 0
 
-    DEF_HZ              = 100_000
-    I2C_MAX_FREQ        = core.I2C_MAX_FREQ
 
     { /INT pin active state }
-    WHEN_TF_ACTIVE      = 0
-    INT_PULSES          = 1 << core.TI_TP
+    WHEN_TF_ACTIVE  = 0
+    INT_PULSES      = 1 << core.TI_TP
 
     { Operating modes }
-    CLKRUN              = 0
-    CLKSTOP             = 1
+    CLKRUN          = 0
+    CLKSTOP         = 1
+
+    SLAVE_WR        = core.SLAVE_ADDR
+    SLAVE_RD        = core.SLAVE_ADDR|1
+    I2C_MAX_FREQ    = core.I2C_MAX_FREQ
+
 
 VAR
 
@@ -35,34 +40,45 @@ VAR
 
     byte _clkdata_ok                            ' Clock data integrity
 
+
 OBJ
 
     i2c : "com.i2c"                             ' I2C engine
     core: "core.con.pcf8563.spin"               ' HW-specific constants
 
+
 PUB null()
 ' This is not a top-level object
 
-PUB startx(SCL_PIN, SDA_PIN, I2C_HZ=DEF_HZ): status
+
+PUB start(): status
+' Start using default I/O settings
+    return startx(SCL, SDA, I2C_FREQ)
+
+
+PUB startx(SCL_PIN, SDA_PIN, I2C_HZ): status
 ' Start using custom I/O pins and bus speed (default 100kHz)
-    if (lookdown(SCL_PIN: 0..63) and lookdown(SDA_PIN: 0..63) and I2C_HZ <= core.I2C_MAX_FREQ)
-        if (status := i2c.init(SCL_PIN, SDA_PIN, I2C_HZ))
+    if ( lookdown(SCL_PIN: 0..63) and lookdown(SDA_PIN: 0..63) )
+        if ( status := i2c.init(SCL_PIN, SDA_PIN, I2C_HZ) )
             waitms(1)
-            if (i2c.present(SLAVE_WR))          ' test device bus presence
+            if ( i2c.present(SLAVE_WR) )        ' test device bus presence
                 return status
     ' if this point is reached, something above failed
     ' Double check I/O pin assignments, connections, power
     ' Lastly - make sure you have at least one free core/cog
     return FALSE
 
+
 PUB stop()
 ' Stop the driver
     i2c.deinit()
     bytefill(@_secs, 0, 8)
 
+
 PUB defaults()
 ' Factory default settings
     clkout_freq(32768)
+
 
 PUB clk_data_ok(): flag
 ' Flag indicating battery voltage ok/clock data integrity ok
@@ -70,7 +86,8 @@ PUB clk_data_ok(): flag
 '       TRUE (-1): Battery voltage ok, clock data integrity guaranteed
 '       FALSE (0): Battery voltage low, clock data integrity not guaranteed
     poll_rtc()
-    return _clkdata_ok == 0
+    return ( _clkdata_ok == 0 )
+
 
 PUB clkout_freq(freq): curr_freq
 ' Set frequency of CLKOUT pin, in Hz
@@ -90,6 +107,7 @@ PUB clkout_freq(freq): curr_freq
     freq := ((curr_freq & core.FD_MASK & core.FE_MASK) | freq)
     writereg(core.CTRL_CLKOUT, 1, @freq)
 
+
 PUB int_clear(mask) | tmp
 ' Clear interrupts, using a bitmask
 '   Valid values:
@@ -108,10 +126,12 @@ PUB int_clear(mask) | tmp
         other:
             return
 
+
 PUB interrupt(): flags
 ' Flag indicating one or more interrupts asserted
     readreg(core.CTRLSTAT2, 1, @flags)
     flags := (flags >> core.TF) & core.IF_BITS
+
 
 PUB int_mask(mask=-2): curr_mask
 ' Set interrupt mask
@@ -123,11 +143,11 @@ PUB int_mask(mask=-2): curr_mask
     readreg(core.CTRLSTAT2, 1, @curr_mask)
     case mask
         %00..%11:
+            mask := ((curr_mask & core.IE_MASK) | mask)
+            writereg(core.CTRLSTAT2, 1, @mask)
         other:
             return (curr_mask & core.IE_BITS)
 
-    mask := ((curr_mask & core.IE_MASK) | mask)
-    writereg(core.CTRLSTAT2, 1, @mask)
 
 PUB int_pin_state(state=-2): curr_state
 ' Set interrupt pin active state
@@ -137,11 +157,11 @@ PUB int_pin_state(state=-2): curr_state
     readreg(core.CTRLSTAT2, 1, @curr_state)
     case state
         WHEN_TF_ACTIVE, INT_PULSES:
+            state := ((curr_state & core.TI_TP_MASK) | state)
+            writereg(core.CTRLSTAT2, 1, @state)
         other:
             return ((curr_state >> core.TI_TP) & 1)
 
-    state := ((curr_state & core.TI_TP_MASK) | state)
-    writereg(core.CTRLSTAT2, 1, @state)
 
 PUB opmode(mode): curr_mode
 ' Set RTC internal operating mode
@@ -152,11 +172,11 @@ PUB opmode(mode): curr_mode
     case mode
         CLKRUN, CLKSTOP:
             mode <<= core.STOP
+            mode := ((curr_mode & core.STOP_MASK) | mode)
+            writereg(core.CTRLSTAT1, 1, @mode)
         other:
             return ((curr_mode >> core.STOP) & 1)
 
-    mode := ((curr_mode & core.STOP_MASK) | mode)
-    writereg(core.CTRLSTAT1, 1, @mode)
 
 PUB poll_rtc()
 ' Read the time data from the RTC and store it in hub RAM
@@ -171,6 +191,7 @@ PUB poll_rtc()
     _months &= core.CENTMONTHS_MASK
     _years &= core.YEARS_MASK
 
+
 PUB set_date(d)
 ' Set date/day of month
 '   Valid values: 1..31
@@ -181,6 +202,7 @@ PUB set_date(d)
             writereg(core.DAYS, 1, @d)
         other:
             return
+
 
 PUB set_hours(h)
 ' Set hours
@@ -193,6 +215,7 @@ PUB set_hours(h)
         other:
             return
 
+
 PUB set_minutes(m)
 ' Set minutes
 '   Valid values: 0..59
@@ -203,6 +226,7 @@ PUB set_minutes(m)
             writereg(core.MINUTES, 1, @m)
         other:
             return
+
 
 PUB set_month(m)
 ' Set month
@@ -215,6 +239,7 @@ PUB set_month(m)
         other:
             return
 
+
 PUB set_seconds(s)
 ' Set seconds
 '   Valid values: 0..59
@@ -225,6 +250,7 @@ PUB set_seconds(s)
             writereg(core.VL_SECS, 1, @s)
         other:
             return
+
 
 PUB set_weekday(w)
 ' Set day of week
@@ -237,6 +263,7 @@ PUB set_weekday(w)
         other:
             return
 
+
 PUB set_year(y)
 ' Set 2-digit year
 '   Valid values: 0..99
@@ -248,6 +275,7 @@ PUB set_year(y)
         other:
             return
 
+
 VAR byte _timer
 PUB set_timer(val=-2): curr_val
 ' Set countdown timer value
@@ -258,11 +286,13 @@ PUB set_timer(val=-2): curr_val
     _timer := val := (0 #> val <# 255)
     writereg(core.TIMER, 1, @val)
 
-PUB timer{}: t
+
+PUB timer(): t
 ' Get currently set value of countdown timer (cached)
 '   NOTE: This returns the value set by set_timer(). For the current remaining time,
 '       use timer_remaining()
     return _timer
+
 
 PUB timer_clk_freq(freq=-2): curr_freq
 ' Set timer source clock frequency, in Hz
@@ -274,12 +304,12 @@ PUB timer_clk_freq(freq=-2): curr_freq
     case freq
         1_60, 1, 64, 4096:
             freq := lookdownz(freq: 4096, 64, 1, 1_60)
+            freq := ((curr_freq & core.TD_MASK) | freq)
+            writereg(core.CTRL_TIMER, 1, @freq)
         other:
             curr_freq &= core.TD_BITS
             return lookupz(curr_freq: 4096, 64, 1, 1_60)
 
-    freq := ((curr_freq & core.TD_MASK) | freq)
-    writereg(core.CTRL_TIMER, 1, @freq)
 
 PUB timer_ena(state=-2): curr_state
 ' Enable timer
@@ -290,16 +320,15 @@ PUB timer_ena(state=-2): curr_state
     case abs(state)
         0, 1:
             state := abs(state) << core.TE
+            if ( state == 0 )                   ' If disabling the timer,
+                timer_clk_freq(1_60)            ' set the freq to 1/60Hz for the lowest power usage
+            state := ((curr_state & core.TE_MASK) | state)
+            writereg(core.CTRL_TIMER, 1, @state)
         other:
             return (((curr_state >> core.TE) & 1) == 1)
 
-    if (state == 0)                             ' If disabling the timer,
-        timer_clk_freq(1_60)                    ' set freq to 1/60Hz for
-                                                ' lowest power usage
-    state := ((curr_state & core.TE_MASK) | state)
-    writereg(core.CTRL_TIMER, 1, @state)
 
-PUB timer_remaining{}: t | tmp[2]
+PUB timer_remaining(): t | tmp[2]
 ' Get current value of countdown timer
     { NXP recommends reading the current countdown value twice and checking for consistent results
         We'll try this two times, and skip the second try if the values were good the first time }
@@ -312,6 +341,7 @@ PUB timer_remaining{}: t | tmp[2]
             t := tmp[0]
             quit
     return
+
 
 PRI readreg(reg_nr, nr_bytes, ptr_buff) | cmd_pkt
 ' Read nr_bytes from device into ptr_buff
@@ -329,6 +359,7 @@ PRI readreg(reg_nr, nr_bytes, ptr_buff) | cmd_pkt
             i2c.stop()
         other:
             return
+
 
 PRI writereg(reg_nr, nr_bytes, ptr_buff) | cmd_pkt
 ' Write nr_bytes from ptr_buff to device
@@ -348,7 +379,7 @@ PRI writereg(reg_nr, nr_bytes, ptr_buff) | cmd_pkt
 
 DAT
 {
-Copyright 2022 Jesse Burt
+Copyright 2024 Jesse Burt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction,
