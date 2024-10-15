@@ -31,9 +31,9 @@ PUB main() | wkday, month, date, yr
 '   The time object contains symbols that can be used in place of integers for the month or
 '       day of the week (e.g., time.OCT, time.OCTOBER, time.TUE, time.TUESDAY
 '                 hh, mm, ss, MMM, DD, WKDAY, YY
-'    set_date_time(07, 10, 00, time.OCT, 15, time.TUE, 24
-    repeat
+'    set_date_time(07, 10, 00, time.OCT, 15, time.TUE, 24)
 
+    repeat
         rtc.poll_rtc()
         { get weekday and month name strings from DAT table below }
         wkday := @wkday_name[(rtc.weekday() - 1) * 4]

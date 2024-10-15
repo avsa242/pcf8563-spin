@@ -45,12 +45,12 @@ OBJ
 
 { decide: Bytecode I2C engine, or PASM? Default is PASM if BC isn't specified }
 #ifdef PCF8563_I2C_BC
-    i2c : "com.i2c.nocog"                       ' BC I2C engine
+    i2c:    "com.i2c.nocog"                     ' BC I2C engine
 #else
-    i2c : "com.i2c"                             ' PASM I2C engine
+    i2c:    "com.i2c"                           ' PASM I2C engine
 #endif
-    core: "core.con.pcf8563"                    ' HW-specific constants
-    time: "time"                                ' timekeeping functions
+    core:   "core.con.pcf8563"                  ' HW-specific constants
+    time:   "time"                              ' timekeeping functions
 
 
 PUB null()
@@ -63,7 +63,13 @@ PUB start(): status
 
 
 PUB startx(SCL_PIN, SDA_PIN, I2C_HZ): status
-' Start using custom I/O pins and bus speed
+' Start the driver with custom I/O settings
+'   SCL_PIN:    I2C clock, 0..31
+'   SDA_PIN:    I2C data, 0..31
+'   I2C_HZ:     I2C clock speed (max official specification is 400_000 but is unenforced)
+'   Returns:
+'       cog ID+1 of I2C engine on success (= calling cog ID+1, if the bytecode I2C engine is used)
+'       0 on failure
     if ( lookdown(SCL_PIN: 0..31) and lookdown(SDA_PIN: 0..31) )
         if ( status := i2c.init(SCL_PIN, SDA_PIN, I2C_HZ) )
             time.msleep(1)
@@ -95,7 +101,7 @@ PUB clk_data_ok(): flag
     return ( _clkdata_ok == 0 )
 
 
-PUB clkout_freq(freq): curr_freq
+PUB clkout_freq(freq=-2): curr_freq
 ' Set frequency of CLKOUT pin, in Hz
 '   Valid values: 0, 1, 32, 1024, 32768
 '   Any other value polls the chip and returns the current setting
@@ -139,7 +145,7 @@ PUB interrupt(): flags
     flags := (flags >> core.TF) & core.IF_BITS
 
 
-PUB int_mask(mask): curr_mask
+PUB int_mask(mask=-2): curr_mask
 ' Set interrupt mask
 '   Valid values:
 '       Bits: 1..0
@@ -155,7 +161,7 @@ PUB int_mask(mask): curr_mask
             return (curr_mask & core.IE_BITS)
 
 
-PUB int_pin_state(state): curr_state
+PUB int_pin_state(state=-2): curr_state
 ' Set interrupt pin active state
 '   WHEN_TF_ACTIVE (0): /INT is active when timer interrupt asserted
 '   INT_PULSES (1): /INT pulses at rate set by timer_clk_freq()
@@ -169,7 +175,7 @@ PUB int_pin_state(state): curr_state
             return ((curr_state >> core.TI_TP) & 1)
 
 
-PUB opmode(mode): curr_mode
+PUB opmode(mode=-2): curr_mode
 ' Set RTC internal operating mode
 '   CLKRUN (0): normal operation; RTC source clock runs
 '   CLKSTOP (1): RTC clock is stopped (32.768kHz CLKOUT still available)
@@ -300,7 +306,7 @@ PUB timer(): t
     return _timer
 
 
-PUB timer_clk_freq(freq): curr_freq
+PUB timer_clk_freq(freq=-2): curr_freq
 ' Set timer source clock frequency, in Hz
 '   Valid values:
 '       1_60 (1/60Hz), 1, 64, 4096
@@ -317,7 +323,7 @@ PUB timer_clk_freq(freq): curr_freq
             return lookupz(curr_freq: 4096, 64, 1, 1_60)
 
 
-PUB timer_ena(state): curr_state
+PUB timer_ena(state=-2): curr_state
 ' Enable timer
 '   Valid values: TRUE (-1 or 1), FALSE (0)
 '   Any other value polls the chip and returns the current setting

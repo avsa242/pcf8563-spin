@@ -43,8 +43,8 @@ VAR
 
 OBJ
 
-    i2c : "com.i2c"                             ' I2C engine
-    core: "core.con.pcf8563.spin"               ' HW-specific constants
+    i2c:    "com.i2c"                           ' I2C engine
+    core:   "core.con.pcf8563.spin"             ' HW-specific constants
 
 
 PUB null()
@@ -57,7 +57,13 @@ PUB start(): status
 
 
 PUB startx(SCL_PIN, SDA_PIN, I2C_HZ): status
-' Start using custom I/O pins and bus speed (default 100kHz)
+' Start the driver with custom I/O settings
+'   SCL_PIN:    I2C clock, 0..63
+'   SDA_PIN:    I2C data, 0..63
+'   I2C_HZ:     I2C clock speed (max official specification is 400_000 but is unenforced)
+'   Returns:
+'       cog ID+1 of I2C engine on success
+'       0 on failure
     if ( lookdown(SCL_PIN: 0..63) and lookdown(SDA_PIN: 0..63) )
         if ( status := i2c.init(SCL_PIN, SDA_PIN, I2C_HZ) )
             waitms(1)
@@ -89,7 +95,7 @@ PUB clk_data_ok(): flag
     return ( _clkdata_ok == 0 )
 
 
-PUB clkout_freq(freq): curr_freq
+PUB clkout_freq(freq=-2): curr_freq
 ' Set frequency of CLKOUT pin, in Hz
 '   Valid values: 0, 1, 32, 1024, 32768
 '   Any other value polls the chip and returns the current setting
@@ -163,7 +169,7 @@ PUB int_pin_state(state=-2): curr_state
             return ((curr_state >> core.TI_TP) & 1)
 
 
-PUB opmode(mode): curr_mode
+PUB opmode(mode=-2): curr_mode
 ' Set RTC internal operating mode
 '   CLKRUN (0): normal operation; RTC source clock runs
 '   CLKSTOP (1): RTC clock is stopped (32.768kHz CLKOUT still available)
@@ -277,7 +283,7 @@ PUB set_year(y)
 
 
 VAR byte _timer
-PUB set_timer(val=-2): curr_val
+PUB set_timer(val): curr_val
 ' Set countdown timer value
 '   Valid values: 0..255 (clamped to range)
 '   NOTE: The countdown period in seconds is equal to timer() / timer_clk_freq()
