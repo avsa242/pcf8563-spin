@@ -5,8 +5,8 @@
         * Time/Date output
     Author:         Jesse Burt
     Started:        Sep 6, 2020
-    Updated:        Oct 15, 2024
-    Copyright (c) 2024 - See end of file for terms of use.
+    Updated:        May 3, 2025
+    Copyright (c) 2025 - See end of file for terms of use.
 ----------------------------------------------------------------------------------------------------
 }
 
@@ -31,7 +31,7 @@ PUB main() | wkday, month, date, yr
 '   The time object contains symbols that can be used in place of integers for the month or
 '       day of the week (e.g., time.OCT, time.OCTOBER, time.TUE, time.TUESDAY
 '                 hh, mm, ss, MMM, DD, WKDAY, YY
-'    set_date_time(07, 10, 00, time.OCT, 15, time.TUE, 24)
+'    set_date_time(15, 06, 00, time.MAY, 3, time.SAT, 25)
 
     repeat
         rtc.poll_rtc()
@@ -43,8 +43,8 @@ PUB main() | wkday, month, date, yr
 
         ser.pos_xy(0, 3)
         ser.str(wkday)
-        ser.printf3(@" %d %s 20%d ", date, month, yr)
-        ser.printf3(@"%02.2d:%02.2d:%02.2d", rtc.hours(), rtc.minutes, rtc.seconds())
+        ser.printf(@" %d %s 20%d ", date, month, yr)
+        ser.printf(@"%02.2d:%02.2d:%02.2d", rtc.hours(), rtc.minutes, rtc.seconds())
 
 
 PUB set_date_time(h, m, s, mmm, dd, wkday, yy)
@@ -101,7 +101,7 @@ DAT
 
 DAT
 {
-Copyright 2024 Jesse Burt
+Copyright 2025 Jesse Burt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction,
